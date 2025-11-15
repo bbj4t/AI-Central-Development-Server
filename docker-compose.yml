@@ -1,0 +1,138 @@
+version: "3.8"
+
+services:
+  # === Ingress / management ===
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    volumes:
+      - ./nginx/data:/data
+      - ./nginx/letsencrypt:/etc/letsencrypt
+    networks:
+      - proxy
+      - internal
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer/data:/data
+    networks:
+      - proxy
+      - internal
+
+  # === Automation / MCP ===
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL}
+      - DB_TYPE=${DB_TYPE}
+      - DB_POSTGRESDB=${DB_POSTGRESDB}
+      - DB_POSTGRES_HOST=${DB_POSTGRES_HOST}
+      - DB_POSTGRES_PORT=${DB_POSTGRES_PORT}
+      - DB_POSTGRES_USER=${DB_POSTGRES_USER}
+      - DB_POSTGRES_PASSWORD=${DB_POSTGRES_PASSWORD}
+      - DB_POSTGRES_SSL=${DB_POSTGRES_SSL}
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    networks:
+      - proxy
+      - internal
+
+  n8n-mcp:
+    build:
+      context: ./n8n-mcp
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - n8n
+    environment:
+      - PORT=4000
+      - N8N_API_URL=http://n8n:5678
+      - MCP_HTTP_MODE=http
+      - LOG_LEVEL=info
+    networks:
+      - proxy
+      - internal
+
+  # === Dev tooling ===
+  code-server:
+    image: coder/code-server:latest
+    restart: unless-stopped
+    environment:
+      - PASSWORD=${CODESERVER_PASSWORD}
+    volumes:
+      - ./projects:/home/coder/projects
+      - ./code-server/config:/home/coder/.local/share/code-server
+    networks:
+      - proxy
+      - internal
+
+  # === S3-like storage (MinIO) ===
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./minio/data:/data
+    expose:
+      - "9000"
+      - "9001"
+    networks:
+      - proxy
+      - internal
+
+  # === Datastores ===
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./redis/data:/data
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${PG_USER}
+      - POSTGRES_PASSWORD=${PG_PASSWORD}
+      - POSTGRES_DB=${PG_DB}
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  # === (Future) Admin MCP agent ===
+  admin-agent-mcp:
+    image: alpine:3.20
+    command: ["sh", "-c", "echo 'admin MCP agent placeholder'; sleep infinity"]
+    restart: unless-stopped
+    networks:
+      - internal
+      - proxy
+
+networks:
+  proxy:
+    driver: bridge
+  internal:
+    driver: bridge
