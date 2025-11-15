@@ -1,0 +1,60 @@
+# AI Central Development Server – Example Environment File
+# Copy to .env and CHANGE ALL PLACEHOLDER SECRETS IMMEDIATELY AFTER DEPLOY.
+# Recommended: keep `.env` out of version control if repository is public.
+
+# --- n8n Core ---
+N8N_BASIC_AUTH_ACTIVE=true
+N8N_BASIC_AUTH_USER=user-jblast
+N8N_BASIC_AUTH_PASSWORD=admin4ai!
+N8N_HOST=n8n.jcn.digital
+N8N_PROTOCOL=https
+N8N_EDITOR_BASE_URL=https://n8n.jcn.digital
+
+# Database backend for n8n: sqlite (default) or postgresdb
+DB_TYPE=sqlite
+DB_POSTGRESDB=
+DB_POSTGRES_HOST=
+DB_POSTGRES_PORT=
+DB_POSTGRES_USER=
+DB_POSTGRES_PASSWORD=
+DB_POSTGRES_SSL=true
+
+# --- code-server ---
+CODESERVER_PASSWORD=admin4ai!
+
+# --- MinIO (S3-compatible local storage) ---
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=admin4ai!
+
+# --- Local Postgres (optional if not using external Neon/Supabase) ---
+PG_USER=dev
+PG_PASSWORD=change_me
+PG_DB=devdb
+
+# --- Redis (add password only if you enable auth) ---
+REDIS_PASSWORD=
+
+# --- External Supabase / Neon (optional) ---
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+NEON_DATABASE_URL=
+
+# --- Admin MCP Agent (future placeholder) ---
+MCP_ADMIN_USER=user-jblast
+MCP_ADMIN_PASSWORD=admin4ai!
+
+# --- WireGuard (future integration flags) ---
+WIREGUARD_ENABLE=false
+WIREGUARD_PEER_PUBLIC_KEY=
+WIREGUARD_PEER_ALLOWED_IPS=10.0.0.0/24
+
+# --- Observability (future Grafana/Prometheus) ---
+GRAFANA_ADMIN_USER=admin
+GRAFANA_ADMIN_PASSWORD=admin4ai!
+PROMETHEUS_RETENTION=15d
+
+# --- Multi-Cloud S3 Profiles Directory ---
+S3_EXTERNAL_CONFIG_DIR=./s3-profiles
+
+# --- Generic logging verbosity ---
+LOG_LEVEL=info
