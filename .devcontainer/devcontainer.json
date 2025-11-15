@@ -1,1 +1,16 @@
-{\n    \"name\": \"Docker-in-Docker\",\n    \"image\": \"docker:latest\",\n    \"settings\": {\n        \"terminal.integrated.profiles.linux\": {\n            \"bash\": {\n                \"command\": \"/usr/bin/bash\"\n            }\n        }\n    },\n    \"features\": {\n        \"docker\": {\n            \"namespace\": \"dind\"\n        }\n    },\n    \"forwardPorts\": [5678, 4000, 9443, 9000, 9001, 8080],\n    \"mounts\": [\n        \"source=${localWorkspace}/docker-compose.yml,target=/workspace/docker-compose.yml,type=bind\"\n    ],\n    \"postCreateCommand\": \"docker-compose up -d\"\n}
+{
+  "name": "Docker-in-Docker",
+  "image": "mcr.microsoft.com/devcontainers/base:alpine",
+  "settings": {
+    "terminal.integrated.profiles.linux": {
+      "bash": {
+        "path": "/usr/bin/bash"
+      }
+    }
+  },
+  "forwardPorts": [5678, 4000, 9443, 9000, 9001, 8080],
+  "mounts": [
+    "source=${localWorkspaceFolder}/docker-compose.yml,target=/workspace/docker-compose.yml,type=bind"
+  ],
+  "postCreateCommand": "docker compose up -d"
+}
