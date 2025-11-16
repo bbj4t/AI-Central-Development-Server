@@ -7,6 +7,16 @@ on:
       - reopened
       - synchronize
       - closed
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to create branch for'
+        required: false
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,63 +35,126 @@ jobs:
   create_neon_branch:
     name: Create Neon Branch
     outputs:
-      db_url: ${{ steps.create_neon_branch_encode.outputs.db_url }}
-      db_url_with_pooler: ${{ steps.create_neon_branch_encode.outputs.db_url_with_pooler }}
+      db_url: ${{ steps.create_neon_branch.outputs.db_url }}
+      db_url_with_pooler: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
+      branch_id: ${{ steps.create_neon_branch.outputs.branch_id }}
     needs: setup
     if: |
-      github.event_name == 'pull_request' && (
+      (github.event_name == 'pull_request' && (
       github.event.action == 'synchronize'
       || github.event.action == 'opened'
-      || github.event.action == 'reopened')
+      || github.event.action == 'reopened'))
+      || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
       - name: Get branch expiration date as an env variable (2 weeks from now)
         id: get_expiration_date
         run: echo "EXPIRES_AT=$(date -u --date '+14 days' +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+      
       - name: Create Neon Branch
         id: create_neon_branch
         uses: neondatabase/create-branch-action@v6
         with:
           project_id: ${{ vars.NEON_PROJECT_ID }}
-          branch_name: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}
+          branch_name: preview/pr-${{ github.event.number || inputs.pr_number }}-${{ needs.setup.outputs.branch }}
           api_key: ${{ secrets.NEON_API_KEY }}
           expires_at: ${{ env.EXPIRES_AT }}
+      
+      - name: Store Database URL (masked)
+        id: store_db_url
+        run: |
+          echo "Database branch created successfully"
+          echo "Branch ID: ${{ steps.create_neon_branch.outputs.branch_id }}"
+          # The actual URLs are not logged to protect credentials
+      
+      - name: Comment on PR with branch info
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const branchName = 'preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}';
+            const branchId = '${{ steps.create_neon_branch.outputs.branch_id }}';
+            
+            const body = `### 🗃️ Neon Database Branch Created
+            
+            A preview database branch has been created for this PR:
+            - **Branch Name**: \`${branchName}\`
+            - **Branch ID**: \`${branchId}\`
+            - **Expires**: ${{ env.EXPIRES_AT }}
+            
+            The database connection is available to your deployment environment via secrets.
+            
+            ---
+            *This branch will be automatically deleted when the PR is closed.*`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body
+            });
 
-# The step above creates a new Neon branch.
-# You may want to do something with the new branch, such as run migrations, run tests
-# on it, or send the connection details to a hosting platform environment.
-# The branch DATABASE_URL is available to you via:
-# "${{ steps.create_neon_branch.outputs.db_url_with_pooler }}".
-# It's important you don't log the DATABASE_URL as output as it contains a username and
-# password for your database.
-# For example, you can uncomment the lines below to run a database migration command:
-#      - name: Run Migrations
-#        run: npm run db:migrate
-#        env:
-#          # to use pooled connection
-#          DATABASE_URL: "${{ steps.create_neon_branch.outputs.db_url_with_pooler }}"
-#          # OR to use unpooled connection
-#          # DATABASE_URL: "${{ steps.create_neon_branch.outputs.db_url }}"
+  integrate_database:
+    name: Integrate Database with Services
+    needs: create_neon_branch
+    if: |
+      (github.event_name == 'pull_request' && (
+      github.event.action == 'synchronize'
+      || github.event.action == 'opened'
+      || github.event.action == 'reopened'))
+      || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Display integration info
+        run: |
+          echo "Database integration step"
+          echo "This step would run migrations or setup tasks"
+          echo "The database URL is available but not logged for security"
+          echo "Branch ID: ${{ needs.create_neon_branch.outputs.branch_id }}"
+      
+      # Uncomment and modify the following steps when you have actual migrations to run
+      # - name: Install dependencies
+      #   run: npm ci
+      #   
+      # - name: Run Database Migrations
+      #   run: npm run db:migrate
+      #   env:
+      #     DATABASE_URL: "${{ needs.create_neon_branch.outputs.db_url_with_pooler }}"
+      
+      - name: Integration complete
+        run: |
+          echo "✅ Database branch is ready for use"
+          echo "Configure your deployment to use the database credentials from secrets"
 
-# Following the step above, which runs database migrations, you may want to check
-# for schema changes in your database. We recommend using the following action to
-# post a comment to your pull request with the schema diff. For this action to work,
-# you also need to give permissions to the workflow job to be able to post comments
-# and read your repository contents. Add the following permissions to the workflow job:
-#
-# permissions:
-#   contents: read
-#   pull-requests: write
-#
-# You can also check out https://github.com/neondatabase/schema-diff-action for more
-# information on how to use the schema diff action.
-# You can uncomment the lines below to enable the schema diff action.
-#      - name: Post Schema Diff Comment to PR
-#        uses: neondatabase/schema-diff-action@v1
-#        with:
-#          project_id: ${{ vars.NEON_PROJECT_ID }}
-#          compare_branch: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}
-#          api_key: ${{ secrets.NEON_API_KEY }}
+  schema_diff:
+    name: Check Schema Changes
+    needs: [setup, create_neon_branch]
+    if: |
+      (github.event_name == 'pull_request' && (
+      github.event.action == 'synchronize'
+      || github.event.action == 'opened'
+      || github.event.action == 'reopened'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post Schema Diff Comment to PR
+        uses: neondatabase/schema-diff-action@v1
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          compare_branch: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}
+          api_key: ${{ secrets.NEON_API_KEY }}
 
   delete_neon_branch:
     name: Delete Neon Branch

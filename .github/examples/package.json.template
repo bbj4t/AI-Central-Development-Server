@@ -1,0 +1,20 @@
+{
+  "name": "ai-central-dev-server",
+  "version": "1.0.0",
+  "description": "AI Central Development Server with Neon Database Integration",
+  "scripts": {
+    "db:migrate": "echo 'Add your migration command here (e.g., prisma migrate deploy, drizzle-kit push, etc.)'",
+    "db:seed": "echo 'Add your database seeding command here'",
+    "db:reset": "echo 'Add your database reset command here'"
+  },
+  "keywords": [
+    "neon",
+    "database",
+    "migrations",
+    "n8n",
+    "mcp"
+  ],
+  "author": "jblast",
+  "license": "MIT",
+  "devDependencies": {}
+}
