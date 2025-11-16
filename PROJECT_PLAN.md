@@ -7,11 +7,14 @@ You are building a centralized “Developer Control Plane” at `mcp.jcn.digital
 - Web IDE (code-server)
 - Object storage abstraction / S3-like endpoint (MinIO)
 - Supporting data stores (Redis, Postgres – optionally external Neon / Supabase instead)
+- **Automated Neon Database branching for PR previews** (integrated via GitHub Actions)
 - Future observability (Grafana + Prometheus stack)
 - An “Admin AI Agent” MCP service able to assist/configure infrastructure and expose tools to other agents
 - Secure remote access (later via WireGuard)
 
 The result: all agents, development environments (Codespaces, local IDEs, HuggingFace Spaces), and workflow automation will reference a **single credential + tooling hub**, minimizing repeated setup and improving consistency.
+
+**NEW**: Neon database integration workflow automatically creates preview branches for pull requests, enabling isolated testing environments. See [NEON_INTEGRATION.md](NEON_INTEGRATION.md) for details.
 
 ---
 
@@ -227,12 +230,15 @@ Start with **Linode 4GB Shared**. Monitor:
 - [ ] Configure NPM proxy & HTTPS.
 - [ ] Change all initial passwords.
 - [ ] Document baseline access in `ACCESS.md`.
+- [x] **Configure Neon Database integration workflow for PR previews**.
 
 ### Should-Do (Phase 2–3)
 - [ ] Add script: `scripts/configure-minio-mc.sh` (multi-cloud profiles).
 - [ ] Create n8n workflows for bucket sync / credential rotation.
 - [ ] Add Prometheus + node-exporter services in `docker-compose.yml`.
 - [ ] Add Grafana service + initial dashboard JSONs.
+- [ ] **Set up database migrations for Neon preview branches**.
+- [ ] **Configure n8n to use Neon database in production**.
 
 ### Future / Optional
 - [ ] Integrate Vault or Doppler for secrets.
